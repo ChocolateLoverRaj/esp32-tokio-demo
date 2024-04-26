@@ -25,8 +25,8 @@ fn main() -> anyhow::Result<()> {
   // eventfd is needed by our mio poll implementation.  Note you should set max_fds
   // higher if you have other code that may need eventfd.
   info!("Setting up eventfd...");
-    max_fds: 1,
   let config = esp_idf_svc::sys::esp_vfs_eventfd_config_t {
+    max_fds: 5,
     ..Default::default()
   };
   esp! { unsafe { esp_idf_svc::sys::esp_vfs_eventfd_register(&config) } }?;

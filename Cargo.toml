@@ -12,7 +12,6 @@ debug = true # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
 
 [patch.crates-io]
-tokio = { git = "https://github.com/tokio-rs/tokio", branch = "master" }
 socket2 = { git = "https://github.com/rust-lang/socket2", branch = "master" }
 
 [dependencies]
