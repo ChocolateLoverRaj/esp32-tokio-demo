@@ -13,7 +13,6 @@ opt-level = "z"
 
 [patch.crates-io]
 tokio = { git = "https://github.com/tokio-rs/tokio", branch = "master" }
-mio = { git = "https://github.com/tokio-rs/mio", branch = "master" }
 socket2 = { git = "https://github.com/rust-lang/socket2", branch = "master" }
 
 [dependencies]
@@ -23,7 +22,7 @@ embedded-hal = "0.2.7"
 log = "0.4.17"
 anyhow = "1"
 tokio = { version = "*", features = ["rt", "net", "io-util"] }
-mio = { version = "0.8.8", features = ["log"] }
+mio = { version = "0.8.11", features = ["log"] }
 
 [features]
 default = ["std", "embassy", "esp-idf-svc/native"]
