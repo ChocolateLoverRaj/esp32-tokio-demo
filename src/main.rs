@@ -1,11 +1,9 @@
-use embedded_svc::wifi::{ClientConfiguration, Configuration};
-use esp_idf_hal::prelude::Peripherals;
+use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::timer::EspTaskTimerService;
-use esp_idf_svc::wifi::{AsyncWifi, EspWifi};
-use esp_idf_sys as _;
-use esp_idf_sys::{esp, esp_app_desc, EspError};
+use esp_idf_svc::wifi::{AsyncWifi, EspWifi, AuthMethod, ClientConfiguration, Configuration};
+use esp_idf_svc::sys::{esp, EspError};
 use log::info;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -18,20 +16,20 @@ const WIFI_PASS: &str = "password";
 // a machine on the same Wi-Fi network.
 const TCP_LISTENING_PORT: u16 = 12345;
 
-esp_app_desc!();
-
 fn main() -> anyhow::Result<()> {
-  esp_idf_sys::link_patches();
+  // It is necessary to call this function once. Otherwise, some patches to the runtime
+  // implemented by esp-idf-sys might not link properly. See https://github.com/esp-rs/esp-idf-template/issues/71
+  esp_idf_svc::sys::link_patches();
   esp_idf_svc::log::EspLogger::initialize_default();
 
   // eventfd is needed by our mio poll implementation.  Note you should set max_fds
   // higher if you have other code that may need eventfd.
   info!("Setting up eventfd...");
-  let config = esp_idf_sys::esp_vfs_eventfd_config_t {
     max_fds: 1,
+  let config = esp_idf_svc::sys::esp_vfs_eventfd_config_t {
     ..Default::default()
   };
-  esp! { unsafe { esp_idf_sys::esp_vfs_eventfd_register(&config) } }?;
+  esp! { unsafe { esp_idf_svc::sys::esp_vfs_eventfd_register(&config) } }?;
 
   info!("Setting up board...");
   let peripherals = Peripherals::take().unwrap();
@@ -71,11 +69,14 @@ pub struct WifiLoop<'a> {
 impl<'a> WifiLoop<'a> {
   pub async fn configure(&mut self) -> Result<(), EspError> {
     info!("Setting Wi-Fi credentials...");
-    self.wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-      ssid: WIFI_SSID.into(),
-      password: WIFI_PASS.into(),
+    let wifi_configuration: Configuration = Configuration::Client(ClientConfiguration {
+      ssid: WIFI_SSID.parse().unwrap(),
+      password: WIFI_PASS.parse().unwrap(),
+      auth_method: AuthMethod::WPA2Personal,
+      channel: None,
       ..Default::default()
-    }))?;
+    });
+    self.wifi.set_configuration(&wifi_configuration)?;
 
     info!("Starting Wi-Fi driver...");
     self.wifi.start().await
@@ -100,13 +101,13 @@ impl<'a> WifiLoop<'a> {
       // way too difficult to showcase the core logic of an example and have
       // a proper Wi-Fi event loop without a robust async runtime.  Fortunately, we can do it
       // now!
-      wifi.wifi_wait(|| wifi.is_up(), None).await?;
+      wifi.wifi_wait(|this| this.is_up(), None).await?;
 
       info!("Connecting to Wi-Fi...");
       wifi.connect().await?;
 
       info!("Waiting for association...");
-      wifi.ip_wait_while(|| wifi.is_up().map(|s| !s), None).await?;
+      wifi.ip_wait_while(|this| this.is_up().map(|s| !s), None).await?;
 
       if exit_after_first_connect {
         return Ok(());
